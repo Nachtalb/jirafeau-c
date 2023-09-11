@@ -10,7 +10,7 @@ void show_help() {
   printf("\n");
   printf("Commands:\n");
   printf("  upload <file> [options]\n");
-  printf("    -t, --time [time]\n");
+  printf("    -t, --time [minute|hour|day|week|fornight|(month)]\n");
   printf("    -o, --one-time-download\n");
   printf("    -k, --key [key]\n");
   printf("    -u, --upload-password [password]\n");
