@@ -11,14 +11,34 @@ static char *output_dir       = NULL;
 static char *output_file_path = NULL;
 static FILE *output_file      = NULL;
 
-static size_t write_callback(void *ptr, size_t size, size_t nmemb,
-                             void *stream) {
-  strncat(stream, ptr, size * nmemb);
-  return size * nmemb;
+struct MemoryStruct {
+  char * memory;
+  size_t size;
+};
+
+static size_t write_memory_callback(void *contents, size_t size, size_t nmemb,
+                                    void *userdata) {
+  size_t realsize          = size * nmemb;
+  struct MemoryStruct *mem = (struct MemoryStruct *)userdata;
+
+  char *ptr = realloc(mem->memory, mem->size + realsize + 1);
+  if (!ptr) {
+    perror("Error: not enough memory\n");
+    return 0;
+  }
+
+  mem->memory = ptr;
+  memcpy(&(mem->memory[mem->size]), contents, realsize);
+  mem->size += realsize;
+  mem->memory[mem->size] = 0;
+
+  return realsize;
 }
 
 void jirafeau_set_host(const char *new_host_url) {
-  host_url = strdup(new_host_url);
+  if (new_host_url) {
+    host_url = strdup(new_host_url);
+  }
 }
 
 static void open_file_to_write(const char *disposition_header) {
@@ -85,22 +105,23 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
   curl_mime *    mime;
   curl_mimepart *part;
 
-  char response[1024] = "";
+  struct MemoryStruct chunk;
+  chunk.memory = malloc(1); /* will be grown as needed by the realloc above */
+  chunk.size   = 0;         /* no data at this point */
 
-  UploadResult *result = malloc(sizeof(UploadResult));
-  result->file_id    = NULL;
-  result->delete_key = NULL;
-  result->crypt_key  = NULL;
+  UploadResult *result = (UploadResult *)calloc(1, sizeof(UploadResult));
 
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
   if (curl) {
     curl_easy_setopt(curl, CURLOPT_URL, host_url);
-    FILE *out = fopen("test", "w");
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, out);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fwrite);
+    /* send all data to this function  */
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
 
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    /* we pass our 'chunk' struct to the callback function */
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
+
+    /* curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); */
 
     mime = curl_mime_init(curl);
 
@@ -131,7 +152,11 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
     if (res != CURLE_OK) {
       fprintf(stderr, "Error: %s\n", curl_easy_strerror(res));
     } else {
-      char *line = strtok(response, "\n");
+      char *line = strtok(chunk.memory, "\n");
+      if (!line) {
+        perror("Response has no body");
+        return NULL;
+      }
       result->file_id    = strdup(line);
       line               = strtok(NULL, "\n");
       result->delete_key = strdup(line);
