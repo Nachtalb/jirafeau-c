@@ -170,14 +170,20 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
     } else {
       char *line = strtok(chunk.memory, "\n");
       if (!line) {
-        perror("Response has no body");
+        perror("Response is too small\n");
         return NULL;
       }
-      result->file_id    = strdup(line);
-      line               = strtok(NULL, "\n");
+      result->file_id = strdup(line);
+      line            = strtok(NULL, "\n");
+      if (!line) {
+        fprintf(stderr, "%s\n", result->file_id);
+        return NULL;
+      }
       result->delete_key = strdup(line);
-      line               = strtok(NULL, "\n");
-      result->crypt_key  = strdup(line);
+      line = strtok(NULL, "\n");
+      if (line) {
+        result->crypt_key = strdup(line);
+      }
     }
 
     curl_easy_cleanup(curl);
