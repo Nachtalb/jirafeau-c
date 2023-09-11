@@ -27,7 +27,7 @@ void show_help() {
 
 void subcommand_upload(int argc, char *argv[]) {
   char *file_path         = argv[3];
-  char *time              = NULL;
+  char *time              = "month";
   char *upload_password   = NULL;
   char *key               = NULL;
   int   one_time_download = 0;
