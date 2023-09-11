@@ -1,6 +1,7 @@
 #include "jirafeau.h"
 #include <curl/curl.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,7 @@ static char *host_url;
 static char *output_dir       = NULL;
 static char *output_file_path = NULL;
 static FILE *output_file      = NULL;
+static bool  file_not_found   = false;
 
 struct MemoryStruct {
   char * memory;
@@ -87,14 +89,13 @@ static size_t header_callback(char *buffer, size_t size, size_t nitems,
 }
 
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
-  if (output_file) {
+  if (!output_file) {
+    file_not_found = true;
+    return 0;
+  } else {
     size_t written = fwrite(ptr, size, nmemb, output_file);
     return written;
   }
-  perror("Error: Still no output file defined when starting download. There "
-         "may be something wrong with the request. Set output file manually "
-         "for now.\n");
-  return 0; // Return 0 to signal an errorb
 }
 
 UploadResult *jirafeau_upload(const char *file_path, const char *time,
@@ -261,14 +262,16 @@ char *jirafeau_download(const char *file_id, const char *output_path,
 
     res = curl_easy_perform(curl);
 
-    if (res != CURLE_OK) {
-      fprintf(stderr, "Download error: %s\n", curl_easy_strerror(res));
+    if (file_not_found) {
+      fprintf(stderr, "File with file-id '%s' does not exist.", file_id);
     } else {
       result = strdup(output_file_path);
     }
 
-    fclose(output_file);
-    free(output_file_path);
+    if (output_file && output_file_path) {
+      fclose(output_file);
+      free(output_file_path);
+    }
 
     curl_easy_cleanup(curl);
   }
