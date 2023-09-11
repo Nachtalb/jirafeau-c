@@ -115,8 +115,8 @@ void subcommand_download(int argc, char *argv[]) {
   result = jirafeau_download(file_id, output_file, key, crypt_key);
 
   switch (result.state) {
-  case UNKNOWN_ERROR:
-    perror("An unknown error occurred\n");
+  case ERROR:
+    perror("An error occurred\n");
     break;
 
   case FILE_NOT_FOUND:
@@ -141,8 +141,8 @@ void subcommand_delete(int argc, char *argv[]) {
   result = jirafeau_delete(file_id, delete_key);
 
   switch (result.state) {
-  case UNKNOWN_ERROR:
-    perror("An unknown error occurred\n");
+  case ERROR:
+    perror("An error occurred\n");
     break;
 
   case FILE_NOT_FOUND:

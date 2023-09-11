@@ -8,7 +8,7 @@
  * Enum for common stats of the a request.
  */
 typedef enum {
-  UNKNOWN_ERROR,
+  ERROR,
   FILE_NOT_FOUND,
   SUCCESS,
 } Status;

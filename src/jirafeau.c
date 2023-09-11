@@ -18,8 +18,8 @@ struct MemoryStruct {
   size_t size;
 };
 
-static size_t write_memory_callback(void *contents, size_t size, size_t nmemb,
-                                    void *userdata) {
+static size_t write_request_body_to_memory(void *contents, size_t size,
+                                           size_t nmemb, void *userdata) {
   size_t realsize          = size * nmemb;
   struct MemoryStruct *mem = (struct MemoryStruct *)userdata;
 
@@ -37,7 +37,27 @@ static size_t write_memory_callback(void *contents, size_t size, size_t nmemb,
   return realsize;
 }
 
-static void open_file_to_write(const char *disposition_header) {
+static size_t handle_request_body(void *ptr, size_t size, size_t nmemb,
+                                  void *stream) {
+  if (!output_file) {
+    state = ERROR;
+
+    if (strstr(ptr, "file is not found")) {
+      state = FILE_NOT_FOUND;
+      return 0;
+    } else if (strstr(ptr, "File has been deleted")) {
+      state = SUCCESS;
+      return 0;
+    }
+    return 1;
+  } else {
+    size_t written = fwrite(ptr, size, nmemb, output_file);
+    return written;
+  }
+}
+
+static void
+set_output_file_by_content_disposition(const char *disposition_header) {
   const char *query    = "filename=\"";
   char *      start    = strstr(disposition_header, query);
   char *      filename = NULL;
@@ -74,27 +94,12 @@ static void open_file_to_write(const char *disposition_header) {
   }
 }
 
-static size_t header_callback(char *buffer, size_t size, size_t nitems,
-                              void *userdata) {
+static size_t handle_request_headers(char *buffer, size_t size, size_t nitems,
+                                     void *userdata) {
   if (strncmp(buffer, "content-disposition:", 19) == 0) {
-    open_file_to_write(buffer);
+    set_output_file_by_content_disposition(buffer);
   }
   return nitems * size;
-}
-
-static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
-  if (!output_file) {
-    state = UNKNOWN_ERROR;
-
-    if (strstr(ptr, "file is not found")) {
-      state = FILE_NOT_FOUND;
-      return 0;
-    }
-    return 1;
-  } else {
-    size_t written = fwrite(ptr, size, nmemb, output_file);
-    return written;
-  }
 }
 
 static void set_output_dir_or_file(const char *output_path) {
@@ -143,7 +148,7 @@ UploadResultT jirafeau_upload(const char *file_path, const char *time,
   if (!host_url) {
     perror("`host_url` has not been defined previously to calling "
            "jirafeau_upload\n");
-    result.state = UNKNOWN_ERROR;
+    result.state = ERROR;
     return result;
   }
 
@@ -166,7 +171,7 @@ UploadResultT jirafeau_upload(const char *file_path, const char *time,
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     /* send all data to this function  */
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_request_body_to_memory);
 
     /* we pass our 'chunk' struct to the callback function */
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
@@ -206,18 +211,18 @@ UploadResultT jirafeau_upload(const char *file_path, const char *time,
     res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
-      result.state = UNKNOWN_ERROR;
+      result.state = ERROR;
     } else {
       char *line = strtok(chunk.memory, "\n");
       if (!line) {
-        result.state = UNKNOWN_ERROR;
+        result.state = ERROR;
         return result;
       }
       result.file_id = strdup(line);
       line           = strtok(NULL, "\n");
       if (!line) {
         fprintf(stderr, "%s\n", result.file_id);
-        result.state = UNKNOWN_ERROR;
+        result.state = ERROR;
         return result;
       }
       result.delete_key = strdup(line);
@@ -243,7 +248,7 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
   set_output_dir_or_file(output_path);
 
   if (!output_dir) {
-    result.state = UNKNOWN_ERROR;
+    result.state = ERROR;
     return result;
   }
 
@@ -266,8 +271,8 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
     if (output_file) {
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, output_file);
     } else {
-      curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+      curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, handle_request_headers);
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, handle_request_body);
     }
 
     if (file_key) {
@@ -312,8 +317,8 @@ DeleteResultT jirafeau_delete(const char *file_id, const char *delete_key) {
   if (curl) {
     curl_easy_setopt(curl, CURLOPT_URL, url);
 
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, handle_request_headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, handle_request_body);
 
     mime = curl_mime_init(curl);
 
