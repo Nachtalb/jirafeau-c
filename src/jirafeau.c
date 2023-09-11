@@ -69,7 +69,6 @@ static size_t header_callback(char *buffer, size_t size, size_t nitems,
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
   if (output_file) {
     size_t written = fwrite(ptr, size, nmemb, output_file);
-    fclose(output_file);
     return written;
   }
   perror("Error: Still no output file defined when starting download. There "
@@ -222,8 +221,6 @@ char *jirafeau_download(const char *file_id, const char *output_path,
     }
 
     fclose(output_file);
-    free(output_dir);
-    free(output_file);
     free(output_file_path);
 
     curl_easy_cleanup(curl);
