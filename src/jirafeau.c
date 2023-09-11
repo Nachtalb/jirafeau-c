@@ -37,12 +37,6 @@ static size_t write_memory_callback(void *contents, size_t size, size_t nmemb,
   return realsize;
 }
 
-void jirafeau_set_host(const char *new_host_url) {
-  if (new_host_url) {
-    host_url = strdup(new_host_url);
-  }
-}
-
 static void open_file_to_write(const char *disposition_header) {
   const char *query    = "filename=\"";
   char *      start    = strstr(disposition_header, query);
@@ -132,6 +126,12 @@ static void set_output_dir_or_file(const char *output_path) {
     free(temp_path);
   } else {
     output_dir = strdup(".");
+  }
+}
+
+void jirafeau_set_host(const char *new_host_url) {
+  if (new_host_url) {
+    host_url = strdup(new_host_url);
   }
 }
 
