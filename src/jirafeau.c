@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-static char *host_url         = "http://default_server.com";
+static char *host_url;
 static char *output_dir       = NULL;
 static char *output_file_path = NULL;
 static FILE *output_file      = NULL;
@@ -93,17 +93,23 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
   }
   perror("Error: Still no output file defined when starting download. There "
          "may be something wrong with the request. Set output file manually "
-         "for now.");
+         "for now.\n");
   return 0; // Return 0 to signal an errorb
 }
 
 UploadResult *jirafeau_upload(const char *file_path, const char *time,
                               const char *upload_password,
                               int one_time_download, const char *key) {
+  if (!host_url) {
+    perror("`host_url` has not been defined previously to calling "
+           "jirafeau_upload\n");
+    return NULL;
+  }
   CURL *         curl;
   CURLcode       res;
   curl_mime *    mime;
   curl_mimepart *part;
+  const char *   endpoint = "/script.php";
 
   struct MemoryStruct chunk;
   chunk.memory = malloc(1); /* will be grown as needed by the realloc above */
@@ -114,8 +120,9 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
   if (curl) {
-    char *url = strdup(host_url);
-    strcat(url, "/script.php");
+    char *url = malloc(strlen(host_url) + strlen(endpoint) + 1);
+    snprintf(url, strlen(host_url) + strlen(endpoint) + 1, "%s%s", host_url,
+             endpoint);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     /* send all data to this function  */
@@ -123,8 +130,6 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
 
     /* we pass our 'chunk' struct to the callback function */
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
-
-    /* curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); */
 
     mime = curl_mime_init(curl);
 
