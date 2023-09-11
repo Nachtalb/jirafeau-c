@@ -114,7 +114,10 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
   if (curl) {
-    curl_easy_setopt(curl, CURLOPT_URL, host_url);
+    char *url = strdup(host_url);
+    strcat(url, "/script.php");
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
     /* send all data to this function  */
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
 
