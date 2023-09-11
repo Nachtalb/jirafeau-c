@@ -53,7 +53,7 @@ void subcommand_upload(int argc, char *argv[]) {
   UploadResult *result =
     jirafeau_upload(file_path, time, upload_password, one_time_download, key);
 
-  if (result->file_id && result->delete_key) {
+  if (result && result->file_id && result->delete_key) {
     printf("File ID: %s\n", result->file_id);
     printf("Delete Key: %s\n", result->delete_key);
     if (result->crypt_key) {
