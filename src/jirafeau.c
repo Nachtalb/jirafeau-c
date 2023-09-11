@@ -68,7 +68,7 @@ static void open_file_to_write(const char *disposition_header) {
 
           output_file = fopen(output_file_path, "wb");
           if (!output_file) {
-            perror("Failed to open file");
+            perror("Failed to open file\n");
           }
         }
 
@@ -201,7 +201,7 @@ static void set_output_dir_or_file(const char *output_path) {
     struct stat st = { 0 };
 
     if (stat(dir, &st) == -1) {
-      perror("Error: Provided output directory does not exist");
+      perror("Error: Provided output directory does not exist\n");
       free(temp_path);
       return;
     }
@@ -213,7 +213,7 @@ static void set_output_dir_or_file(const char *output_path) {
       output_file      = fopen(output_path, "wb");
 
       if (!output_file) {
-        perror("Error: Could not open output file");
+        perror("Error: Could not open output file\n");
         free(temp_path);
         return;
       }
