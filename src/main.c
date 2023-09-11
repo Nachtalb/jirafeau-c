@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 void show_help() {
   printf("jirafeau CLI\n");
@@ -65,10 +66,15 @@ void subcommand_upload(int argc, char *argv[]) {
     jirafeau_upload(file_path, time, upload_password, one_time_download, key);
 
   if (result && result->file_id && result->delete_key) {
-    printf("File ID: %s\n", result->file_id);
-    printf("Delete Key: %s\n", result->delete_key);
-    if (result->crypt_key) {
-      printf("Crypt Key: %s\n", result->crypt_key);
+    if (isatty(STDOUT_FILENO)) {
+      printf("File ID: %s\n", result->file_id);
+      printf("Delete Key: %s\n", result->delete_key);
+      if (result->crypt_key) {
+        printf("Crypt Key: %s\n", result->crypt_key);
+      }
+    } else {
+      printf("%s\n%s\%s\n", result->file_id, result->delete_key,
+             result->crypt_key ? result->crypt_key : "");
     }
   } else {
     printf("Upload failed.\n");
