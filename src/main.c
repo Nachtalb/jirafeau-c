@@ -31,22 +31,32 @@ void subcommand_upload(int argc, char *argv[]) {
   char *key               = NULL;
   int   one_time_download = 0;
 
-  if ((argc - 4) % 2 != 0) {
-    fprintf(stderr, "Each flag should have a corresponding value.\n");
-    exit(EXIT_FAILURE);
-  }
-
   for (int i = 3; i < argc; i++) {
     if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--time") == 0) {
-      time = argv[++i];
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        time = argv[++i];
+      } else {
+        perror("Missing value for -t/--time\n");
+        exit(EXIT_FAILURE);
+      }
     } else if (strcmp(argv[i], "-o") == 0 ||
                strcmp(argv[i], "--one-time-download") == 0) {
       one_time_download = 1;
     } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--key") == 0) {
-      key = argv[++i];
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        key = argv[++i];
+      } else {
+        perror("Missing value for -k/--key\n");
+        exit(EXIT_FAILURE);
+      }
     } else if (strcmp(argv[i], "-u") == 0 ||
                strcmp(argv[i], "--upload-password") == 0) {
-      upload_password = argv[++i];
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        upload_password = argv[++i];
+      } else {
+        perror("Missing value for -u/--upload-password\n");
+        exit(EXIT_FAILURE);
+      }
     }
   }
 
@@ -71,20 +81,25 @@ void subcommand_download(int argc, char *argv[]) {
   char *crypt_key   = NULL;
   char *final_file;
 
-  if ((argc - 4) % 2 != 0) {
-    fprintf(stderr, "Each flag should have a corresponding value.\n");
-    exit(EXIT_FAILURE);
-  }
-
   for (int i = 3; i < argc; i++) {
     if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--key") == 0) {
       key = argv[++i];
     } else if (strcmp(argv[i], "-c") == 0 ||
                strcmp(argv[i], "--crypt-key") == 0) {
-      crypt_key = argv[++i];
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        crypt_key = argv[++i];
+      } else {
+        perror("Missing value for -c/--crypt-key\n");
+        exit(EXIT_FAILURE);
+      }
     } else if (strcmp(argv[i], "-o") == 0 ||
                strcmp(argv[i], "--output-file") == 0) {
-      output_file = argv[++i];
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        output_file = argv[++i];
+      } else {
+        perror("Missing value for -o/--output-file\n");
+        exit(EXIT_FAILURE);
+      }
     }
   }
 
