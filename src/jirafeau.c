@@ -40,13 +40,15 @@ static size_t write_request_body_to_memory(void *contents, size_t size,
 
 static size_t handle_request_body(void *ptr, size_t size, size_t nmemb,
                                   void *stream) {
+  if (strstr(ptr, "file is not found")) {
+    state = FILE_NOT_FOUND;
+    return 0;
+  }
+
   if (!output_file) {
     state = ERROR;
 
-    if (strstr(ptr, "file is not found")) {
-      state = FILE_NOT_FOUND;
-      return 0;
-    } else if (strstr(ptr, "File has been deleted")) {
+    if (strstr(ptr, "File has been deleted")) {
       state = SUCCESS;
       return 0;
     }
@@ -106,10 +108,22 @@ static size_t handle_request_headers(char *buffer, size_t size, size_t nitems,
 
 static void set_output_dir_or_file(const char *output_path) {
   if (output_path) {
-    char *temp_path = strdup(output_path);
-    char *dir       = dirname(temp_path);
+    char *      temp_path = strdup(output_path);
+    struct stat st        = { 0 };
 
-    struct stat st = { 0 };
+    if (stat(temp_path, &st) == 0) {
+      if (S_ISDIR(st.st_mode)) {
+        output_dir = strdup(temp_path);
+        int len = strlen(output_dir);
+        if (output_dir[len - 1] == '/') {
+          output_dir[len - 1] = '\0';
+        }
+        free(temp_path);
+        return;
+      }
+    }
+
+    char *dir = dirname(temp_path);
 
     if (stat(dir, &st) == -1) {
       perror("Error: Provided output directory does not exist\n");
@@ -119,6 +133,10 @@ static void set_output_dir_or_file(const char *output_path) {
 
     if (S_ISDIR(st.st_mode) && strcmp(dir, output_path) == 0) {
       output_dir = strdup(dir);
+      int len = strlen(output_dir);
+      if (output_dir[len - 1] == '/') {
+        output_dir[len - 1] = '\0';
+      }
     } else {
       output_file_path = strdup(output_path);
       output_file      = fopen(output_path, "wb");
@@ -273,13 +291,10 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
 
-    if (output_file) {
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, output_file);
-      state = SUCCESS;
-    } else {
+    if (!output_file) {
       curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, handle_request_headers);
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, handle_request_body);
     }
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, handle_request_body);
 
     if (file_key) {
       char post_fields[256];
@@ -289,7 +304,7 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
 
     res = curl_easy_perform(curl);
 
-    if (res != CURLE_OK) {
+    if (state == SUCCESS && res != CURLE_OK) {
       state = ERROR;
     }
 
