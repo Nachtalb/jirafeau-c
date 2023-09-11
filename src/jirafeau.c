@@ -129,21 +129,29 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
     curl_mime_name(part, "file");
     curl_mime_filedata(part, file_path);
 
-    part = curl_mime_addpart(mime);
-    curl_mime_name(part, "time");
-    curl_mime_data(part, time, CURL_ZERO_TERMINATED);
+    if (time) {
+      part = curl_mime_addpart(mime);
+      curl_mime_name(part, "time");
+      curl_mime_data(part, time, CURL_ZERO_TERMINATED);
+    }
 
-    part = curl_mime_addpart(mime);
-    curl_mime_name(part, "upload_password");
-    curl_mime_data(part, upload_password, CURL_ZERO_TERMINATED);
+    if (upload_password) {
+      part = curl_mime_addpart(mime);
+      curl_mime_name(part, "upload_password");
+      curl_mime_data(part, upload_password, CURL_ZERO_TERMINATED);
+    }
 
-    part = curl_mime_addpart(mime);
-    curl_mime_name(part, "one_time_download");
-    curl_mime_data(part, one_time_download ? "1" : "0", CURL_ZERO_TERMINATED);
+    if (one_time_download) {
+      part = curl_mime_addpart(mime);
+      curl_mime_name(part, "one_time_download");
+      curl_mime_data(part, one_time_download ? "1" : "0", CURL_ZERO_TERMINATED);
+    }
 
-    part = curl_mime_addpart(mime);
-    curl_mime_name(part, "key");
-    curl_mime_data(part, key, CURL_ZERO_TERMINATED);
+    if (key) {
+      part = curl_mime_addpart(mime);
+      curl_mime_name(part, "key");
+      curl_mime_data(part, key, CURL_ZERO_TERMINATED);
+    }
 
     curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
 
