@@ -67,10 +67,10 @@ void subcommand_upload(int argc, char *argv[]) {
 
   if (result && result->file_id && result->delete_key) {
     if (isatty(STDOUT_FILENO)) {
-      printf("File ID: %s\n", result->file_id);
+      printf("File ID:    %s\n", result->file_id);
       printf("Delete Key: %s\n", result->delete_key);
       if (result->crypt_key) {
-        printf("Crypt Key: %s\n", result->crypt_key);
+        printf("Crypt Key:  %s\n", result->crypt_key);
       }
     } else {
       printf("%s\n%s\%s\n", result->file_id, result->delete_key,
