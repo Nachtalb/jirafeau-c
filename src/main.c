@@ -72,6 +72,7 @@ void subcommand_upload(int argc, char *argv[]) {
     }
   } else {
     printf("Upload failed.\n");
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -108,6 +109,8 @@ void subcommand_download(int argc, char *argv[]) {
 
   if (final_file) {
     printf("%s\n", final_file);
+  } else {
+    exit(EXIT_FAILURE);
   }
 }
 
