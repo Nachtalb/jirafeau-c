@@ -1,4 +1,4 @@
-#include "jirafeau.h"
+#include "../include/jirafeau.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,11 +27,12 @@ void show_help() {
 }
 
 void subcommand_upload(int argc, char *argv[]) {
-  char *file_path         = argv[3];
-  char *time              = "month";
-  char *upload_password   = NULL;
-  char *key               = NULL;
-  int   one_time_download = 0;
+  char *        file_path         = argv[3];
+  char *        time              = "month";
+  char *        upload_password   = NULL;
+  char *        key               = NULL;
+  int           one_time_download = 0;
+  UploadResultT result;
 
   for (int i = 3; i < argc; i++) {
     if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--time") == 0) {
@@ -62,19 +63,19 @@ void subcommand_upload(int argc, char *argv[]) {
     }
   }
 
-  UploadResult *result =
+  result =
     jirafeau_upload(file_path, time, upload_password, one_time_download, key);
 
-  if (result && result->file_id && result->delete_key) {
+  if (result.state == SUCCESS) {
     if (isatty(STDOUT_FILENO)) {
-      printf("File ID:    %s\n", result->file_id);
-      printf("Delete Key: %s\n", result->delete_key);
-      if (result->crypt_key) {
-        printf("Crypt Key:  %s\n", result->crypt_key);
+      printf("File ID:    %s\n", result.file_id);
+      printf("Delete Key: %s\n", result.delete_key);
+      if (result.crypt_key) {
+        printf("Crypt Key:  %s\n", result.crypt_key);
       }
     } else {
-      printf("%s\n%s\%s\n", result->file_id, result->delete_key,
-             result->crypt_key ? result->crypt_key : "");
+      printf("%s\n%s\%s\n", result.file_id, result.delete_key,
+             result.crypt_key ? result.crypt_key : "");
     }
   } else {
     printf("Upload failed.\n");
@@ -83,11 +84,11 @@ void subcommand_upload(int argc, char *argv[]) {
 }
 
 void subcommand_download(int argc, char *argv[]) {
-  char *file_id     = argv[3];
-  char *output_file = NULL;
-  char *key         = NULL;
-  char *crypt_key   = NULL;
-  char *final_file;
+  char *          file_id     = argv[3];
+  char *          output_file = NULL;
+  char *          key         = NULL;
+  char *          crypt_key   = NULL;
+  DownloadResultT result;
 
   for (int i = 3; i < argc; i++) {
     if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--key") == 0) {
@@ -111,12 +112,20 @@ void subcommand_download(int argc, char *argv[]) {
     }
   }
 
-  final_file = jirafeau_download(file_id, output_file, key, crypt_key);
+  result = jirafeau_download(file_id, output_file, key, crypt_key);
 
-  if (final_file) {
-    printf("%s\n", final_file);
-  } else {
-    exit(EXIT_FAILURE);
+  switch (result.state) {
+  case UNKNOWN_ERROR:
+    perror("An unknown error occurred\n");
+    break;
+
+  case FILE_NOT_FOUND:
+    perror("File could not be found\n");
+    break;
+
+  case SUCCESS:
+    printf("%s\n", result.download_path);
+    break;
   }
 }
 
@@ -125,13 +134,24 @@ void subcommand_delete(int argc, char *argv[]) {
     perror("You have to define both the 'file_id' and the 'delete_key'");
     exit(EXIT_FAILURE);
   }
-  char *file_id    = argv[3];
-  char *delete_key = argv[4];
+  char *        file_id    = argv[3];
+  char *        delete_key = argv[4];
+  DeleteResultT result;
 
-  if (jirafeau_delete(file_id, delete_key)) {
-    perror("File was delete");
-  } else {
-    perror("File could not be deleted or does't exist");
+  result = jirafeau_delete(file_id, delete_key);
+
+  switch (result.state) {
+  case UNKNOWN_ERROR:
+    perror("An unknown error occurred\n");
+    break;
+
+  case FILE_NOT_FOUND:
+    perror("File could not be found, already deleted?\n");
+    break;
+
+  case SUCCESS:
+    printf("File deleted\n");
+    break;
   }
 }
 

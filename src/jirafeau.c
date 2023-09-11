@@ -1,4 +1,4 @@
-#include "jirafeau.h"
+#include "../include/jirafeau.h"
 #include <curl/curl.h>
 #include <libgen.h>
 #include <stdbool.h>
@@ -7,11 +7,11 @@
 #include <string.h>
 #include <sys/stat.h>
 
-static char *host_url;
-static char *output_dir       = NULL;
-static char *output_file_path = NULL;
-static FILE *output_file      = NULL;
-static bool  file_not_found   = false;
+static char * host_url;
+static char * output_dir       = NULL;
+static char * output_file_path = NULL;
+static FILE * output_file      = NULL;
+static Status state;
 
 struct MemoryStruct {
   char * memory;
@@ -90,22 +90,63 @@ static size_t header_callback(char *buffer, size_t size, size_t nitems,
 
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
   if (!output_file) {
-    file_not_found = true;
-    return 0;
+    state = UNKNOWN_ERROR;
+
+    if (strstr(ptr, "file is not found")) {
+      state = FILE_NOT_FOUND;
+      return 0;
+    }
+    return 1;
   } else {
     size_t written = fwrite(ptr, size, nmemb, output_file);
     return written;
   }
 }
 
-UploadResult *jirafeau_upload(const char *file_path, const char *time,
+static void set_output_dir_or_file(const char *output_path) {
+  if (output_path) {
+    char *temp_path = strdup(output_path);
+    char *dir       = dirname(temp_path);
+
+    struct stat st = { 0 };
+
+    if (stat(dir, &st) == -1) {
+      perror("Error: Provided output directory does not exist\n");
+      free(temp_path);
+      return;
+    }
+
+    if (S_ISDIR(st.st_mode) && strcmp(dir, output_path) == 0) {
+      output_dir = strdup(dir);
+    } else {
+      output_file_path = strdup(output_path);
+      output_file      = fopen(output_path, "wb");
+
+      if (!output_file) {
+        perror("Error: Could not open output file\n");
+        free(temp_path);
+        return;
+      }
+    }
+
+    free(temp_path);
+  } else {
+    output_dir = strdup(".");
+  }
+}
+
+UploadResultT jirafeau_upload(const char *file_path, const char *time,
                               const char *upload_password,
                               int one_time_download, const char *key) {
+  struct UploadResult result = { 0 };
+
   if (!host_url) {
     perror("`host_url` has not been defined previously to calling "
            "jirafeau_upload\n");
-    return NULL;
+    result.state = UNKNOWN_ERROR;
+    return result;
   }
+
   CURL *         curl;
   CURLcode       res;
   curl_mime *    mime;
@@ -115,8 +156,6 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
   struct MemoryStruct chunk;
   chunk.memory = malloc(1); /* will be grown as needed by the realloc above */
   chunk.size   = 0;         /* no data at this point */
-
-  UploadResult *result = (UploadResult *)calloc(1, sizeof(UploadResult));
 
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
@@ -167,24 +206,27 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
     res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
-      fprintf(stderr, "Error: %s\n", curl_easy_strerror(res));
+      result.state = UNKNOWN_ERROR;
     } else {
       char *line = strtok(chunk.memory, "\n");
       if (!line) {
-        perror("Response is too small\n");
-        return NULL;
+        result.state = UNKNOWN_ERROR;
+        return result;
       }
-      result->file_id = strdup(line);
-      line            = strtok(NULL, "\n");
+      result.file_id = strdup(line);
+      line           = strtok(NULL, "\n");
       if (!line) {
-        fprintf(stderr, "%s\n", result->file_id);
-        return NULL;
+        fprintf(stderr, "%s\n", result.file_id);
+        result.state = UNKNOWN_ERROR;
+        return result;
       }
-      result->delete_key = strdup(line);
+      result.delete_key = strdup(line);
       line = strtok(NULL, "\n");
       if (line) {
-        result->crypt_key = strdup(line);
+        result.crypt_key = strdup(line);
       }
+
+      result.state = SUCCESS;
     }
 
     curl_easy_cleanup(curl);
@@ -194,43 +236,17 @@ UploadResult *jirafeau_upload(const char *file_path, const char *time,
   return result;
 }
 
-static void set_output_dir_or_file(const char *output_path) {
-  if (output_path) {
-    char *temp_path = strdup(output_path);
-    char *dir       = dirname(temp_path);
+DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
+                                  const char *file_key, const char *crypt_key) {
+  struct DownloadResult result = { 0 };
 
-    struct stat st = { 0 };
-
-    if (stat(dir, &st) == -1) {
-      perror("Error: Provided output directory does not exist\n");
-      free(temp_path);
-      return;
-    }
-
-    if (S_ISDIR(st.st_mode) && strcmp(dir, output_path) == 0) {
-      output_dir = strdup(dir);
-    } else {
-      output_file_path = strdup(output_path);
-      output_file      = fopen(output_path, "wb");
-
-      if (!output_file) {
-        perror("Error: Could not open output file\n");
-        free(temp_path);
-        return;
-      }
-    }
-
-    free(temp_path);
-  } else {
-    output_dir = strdup(".");
-  }
-}
-
-char *jirafeau_download(const char *file_id, const char *output_path,
-                        const char *file_key, const char *crypt_key) {
   set_output_dir_or_file(output_path);
 
-  char *   result = NULL;
+  if (!output_dir) {
+    result.state = UNKNOWN_ERROR;
+    return result;
+  }
+
   CURL *   curl;
   CURLcode res;
 
@@ -262,13 +278,10 @@ char *jirafeau_download(const char *file_id, const char *output_path,
 
     res = curl_easy_perform(curl);
 
-    if (file_not_found) {
-      fprintf(stderr, "File with file-id '%s' does not exist.", file_id);
-    } else {
-      result = strdup(output_file_path);
-    }
+    result.state = state;
+    if (result.state == SUCCESS) {
+      result.download_path = strdup(output_file_path);
 
-    if (output_file && output_file_path) {
       fclose(output_file);
       free(output_file_path);
     }
@@ -280,6 +293,42 @@ char *jirafeau_download(const char *file_id, const char *output_path,
   return result;
 }
 
-bool jirafeau_delete(const char *file_id, const char *delete_key) {
-  return false;
+DeleteResultT jirafeau_delete(const char *file_id, const char *delete_key) {
+  struct DeleteResult result = { 0 };
+  CURL *         curl;
+  CURLcode       res;
+  curl_mime *    mime;
+  curl_mimepart *part;
+
+  char *endpoint_template = "%s/f.php?h=%s&d=%s";
+  int   len = strlen(host_url) + strlen(endpoint_template) - 6 + strlen(file_id) +
+              strlen(delete_key) + 1; // -6 due to 3 %s in template and + 1 for \0
+  char *url = malloc(len);
+  snprintf(url, len, endpoint_template, host_url, file_id, delete_key);
+
+  curl_global_init(CURL_GLOBAL_ALL);
+  curl = curl_easy_init();
+
+  if (curl) {
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+
+    mime = curl_mime_init(curl);
+
+    part = curl_mime_addpart(mime);
+    curl_mime_name(part, "do_delete");
+    curl_mime_data(part, "1", CURL_ZERO_TERMINATED);
+
+    curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+
+    res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    result.state = state;
+  }
+
+  curl_global_cleanup();
+  return result;
 }
