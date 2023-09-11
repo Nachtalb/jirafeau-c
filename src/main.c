@@ -1,4 +1,5 @@
 #include "jirafeau.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,8 +22,7 @@ void show_help() {
   printf("    -c, --crypt-key [crypt-key]\n");
   printf("    -o, --output-file [output-file]\n");
   printf("\n");
-  printf("  delete <file_id> [options]\n");
-  printf("    -d, --delete-key [delete-key]\n");
+  printf("  delete <file_id> <delete_key>\n");
   printf("\n");
 }
 
@@ -121,7 +121,18 @@ void subcommand_download(int argc, char *argv[]) {
 }
 
 void subcommand_delete(int argc, char *argv[]) {
-  // Code for delete command
+  if (argc < 5) {
+    perror("You have to define both the 'file_id' and the 'delete_key'");
+    exit(EXIT_FAILURE);
+  }
+  char *file_id    = argv[3];
+  char *delete_key = argv[4];
+
+  if (jirafeau_delete(file_id, delete_key)) {
+    perror("File was delete");
+  } else {
+    perror("File could not be deleted or does't exist");
+  }
 }
 
 int main(int argc, char *argv[]) {

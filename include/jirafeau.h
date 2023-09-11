@@ -1,6 +1,7 @@
 #ifndef JIRAFAEU_H
 #define JIRAFAEU_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 /**
@@ -50,7 +51,8 @@ char *jirafeau_download(const char *file_id, const char *output_path,
  *
  * @param file_id ID of the file to be deleted
  * @param delete_key Delete key for the file
+ * @return Whether the file could be deleted or not
  */
-void jirafeau_delete(const char *file_id, const char *delete_key);
+bool jirafeau_delete(const char *file_id, const char *delete_key);
 
 #endif // JIRAFAEU_H

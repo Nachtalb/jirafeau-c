@@ -279,3 +279,7 @@ char *jirafeau_download(const char *file_id, const char *output_path,
   curl_global_cleanup();
   return result;
 }
+
+bool jirafeau_delete(const char *file_id, const char *delete_key) {
+  return false;
+}
