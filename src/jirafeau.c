@@ -1,4 +1,4 @@
-#include "../include/jirafeau.h"
+#include "jirafeau.h"
 #include <curl/curl.h>
 #include <libgen.h>
 #include <stdbool.h>
