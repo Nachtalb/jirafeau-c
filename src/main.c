@@ -117,10 +117,12 @@ void subcommand_download(int argc, char *argv[]) {
   switch (result.state) {
   case ERROR:
     perror("An error occurred\n");
+    exit(EXIT_FAILURE);
     break;
 
   case FILE_NOT_FOUND:
     perror("File could not be found\n");
+    exit(EXIT_FAILURE);
     break;
 
   case SUCCESS:
@@ -143,10 +145,12 @@ void subcommand_delete(int argc, char *argv[]) {
   switch (result.state) {
   case ERROR:
     perror("An error occurred\n");
+    exit(EXIT_FAILURE);
     break;
 
   case FILE_NOT_FOUND:
     perror("File could not be found, already deleted?\n");
+    exit(EXIT_FAILURE);
     break;
 
   case SUCCESS:

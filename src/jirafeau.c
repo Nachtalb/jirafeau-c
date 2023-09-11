@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 static char * host_url;
 static char * output_dir       = NULL;
@@ -51,6 +52,7 @@ static size_t handle_request_body(void *ptr, size_t size, size_t nmemb,
     }
     return 1;
   } else {
+    state = SUCCESS;
     size_t written = fwrite(ptr, size, nmemb, output_file);
     return written;
   }
@@ -247,10 +249,16 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
 
   set_output_dir_or_file(output_path);
 
-  if (!output_dir) {
+  if (!output_dir && !output_file_path) {
     result.state = ERROR;
     return result;
   }
+
+  char *endpoint_template = "%s/f.php?h=%s&d=1";
+  int   len = strlen(host_url) + strlen(endpoint_template) - 4 + strlen(file_id) +
+              +1; // -4 due to 2 %s in template and + 1 for \0
+  char *url = malloc(len);
+  snprintf(url, len, endpoint_template, host_url, file_id);
 
   CURL *   curl;
   CURLcode res;
@@ -258,9 +266,6 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
   if (curl) {
-    char url[512];
-    snprintf(url, sizeof(url), "%s/f.php?d=1&h=%s", host_url, file_id);
-
     if (crypt_key) {
       strcat(url, "&k=");
       strcat(url, crypt_key);
@@ -270,6 +275,7 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
 
     if (output_file) {
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, output_file);
+      state = SUCCESS;
     } else {
       curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, handle_request_headers);
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, handle_request_body);
@@ -283,12 +289,18 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
 
     res = curl_easy_perform(curl);
 
+    if (res != CURLE_OK) {
+      state = ERROR;
+    }
+
     result.state = state;
     if (result.state == SUCCESS) {
       result.download_path = strdup(output_file_path);
-
       fclose(output_file);
       free(output_file_path);
+    } else if (output_file) {
+      fclose(output_file);
+      unlink(output_file_path);
     }
 
     curl_easy_cleanup(curl);
