@@ -115,10 +115,11 @@ void subcommand_delete(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 2 || strcmp(argv[1], "--help") == 0 ||
-      strcmp(argv[1], "-h") == 0) {
-    show_help();
-    return 1;
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+      show_help();
+      return 1;
+    }
   }
 
   char *host    = argv[1];
