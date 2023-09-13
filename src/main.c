@@ -75,10 +75,8 @@ void subcommand_upload(int argc, char *argv[]) {
 
     if (isatty(STDOUT_FILENO)) {
       printf("\033[1;32mURL\033[0m          %s\n", file_url);
-      printf("\033[1;34mPreview URL\033[0m  %s&p=1\n", file_url,
-             result.file_id);
-      printf("\033[1;35mDownload URL\033[0m %s&d=1\n", file_url,
-             result.file_id);
+      printf("\033[1;34mPreview URL\033[0m  %s&p=1\n", file_url);
+      printf("\033[1;35mDownload URL\033[0m %s&d=1\n", file_url);
       printf("\033[1;31mDelete URL\033[0m   %s&d=%s\n", file_url,
              result.delete_key);
       printf("\n");

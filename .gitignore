@@ -130,3 +130,4 @@ tags
 
 build/
 .token
+.ccls-cache
