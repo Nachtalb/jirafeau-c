@@ -16,6 +16,7 @@ void show_help() {
   printf("    -o, --one-time-download\n");
   printf("    -k, --key [key]\n");
   printf("    -u, --upload-password [password]\n");
+  printf("    -r, --randomised-name\n");
   printf("\n");
   printf("  download <file_id> [options]\n");
   printf("    -k, --key [key]\n");
@@ -26,12 +27,23 @@ void show_help() {
   printf("\n");
 }
 
+static void random_string(char *str, size_t len) {
+  const char charset[] =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  for (size_t i = 0; i < len; ++i) {
+    int index = rand() % (sizeof(charset) - 1);
+    str[i] = charset[index];
+  }
+  str[len] = '\0';
+}
+
 void subcommand_upload(int argc, char *argv[]) {
   char *        file_path         = argv[3];
   char *        time              = "month";
   char *        upload_password   = NULL;
   char *        key               = NULL;
   int           one_time_download = 0;
+  char *        filename;
   UploadResultT result;
 
   for (int i = 3; i < argc; i++) {
@@ -45,6 +57,14 @@ void subcommand_upload(int argc, char *argv[]) {
     } else if (strcmp(argv[i], "-o") == 0 ||
                strcmp(argv[i], "--one-time-download") == 0) {
       one_time_download = 1;
+    } else if (strcmp(argv[i], "-r") == 0 ||
+               strcmp(argv[i], "--randomised-name") == 0) {
+      char random_stem[10];
+      random_string(random_stem, 9);
+      char *extension = strrchr(file_path, '.');
+      filename = (char *)malloc(strlen(extension) + 10 + 1);
+      snprintf(filename, strlen(extension) + 10 + 1, "%s%s", random_stem,
+               extension);
     } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--key") == 0) {
       if (i + 1 < argc && argv[i + 1][0] != '-') {
         key = argv[++i];
@@ -63,15 +83,21 @@ void subcommand_upload(int argc, char *argv[]) {
     }
   }
 
-  result =
-    jirafeau_upload(file_path, time, upload_password, one_time_download, key);
+  if (filename) {
+    result = jirafeau_upload(file_path, time, upload_password,
+                             one_time_download, key, filename);
+    free(filename);
+  } else {
+    jirafeau_upload(file_path, time, upload_password, one_time_download, key,
+                    filename);
+  }
 
   if (result.state == SUCCESS) {
     char *host_url = jirafeau_get_host();
 
-    char *file_url;
-    snprintf(file_url, strlen(host_url) + 9 + strlen(result.file_id) + 1,
-             "%s/f.php?h=%s", host_url, result.file_id);
+    int   len      = strlen(host_url) + strlen(result.file_id) + 10;
+    char *file_url = (char *)malloc(len);
+    snprintf(file_url, len, "%s/f.php?h=%s", host_url, result.file_id);
 
     if (isatty(STDOUT_FILENO)) {
       printf("\033[1;32mURL\033[0m          %s\n", file_url);
@@ -96,6 +122,8 @@ void subcommand_upload(int argc, char *argv[]) {
              result.delete_key, result.file_id, result.delete_key,
              result.crypt_key ? result.crypt_key : "");
     }
+
+    free(file_url);
   } else {
     printf("Upload failed.\n");
     exit(EXIT_FAILURE);
@@ -179,6 +207,8 @@ void subcommand_delete(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+  srand(time(NULL));
+
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
       show_help();

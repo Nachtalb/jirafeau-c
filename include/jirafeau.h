@@ -60,12 +60,14 @@ char *jirafeau_get_host();
  * @param upload_password Password for the upload (optional)
  * @param one_time_download Flag to enable one-time download (optional)
  * @param key Key for authorized access (optional)
+ * @param custom filename for the uploaded file (optional)
  * @return A struct containing the FILE_ID, DELETE_KEY, and CRYPT_KEY and the
  * state of the request (Status).
  */
 UploadResultT jirafeau_upload(const char *file_path, const char *time,
                               const char *upload_password,
-                              int one_time_download, const char *key);
+                              int one_time_download, const char *key,
+                              const char *filename);
 
 /**
  * Downloads a file from the Jirafeau server.

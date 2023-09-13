@@ -166,7 +166,8 @@ char *jirafeau_get_host() {
 
 UploadResultT jirafeau_upload(const char *file_path, const char *time,
                               const char *upload_password,
-                              int one_time_download, const char *key) {
+                              int one_time_download, const char *key,
+                              const char *filename) {
   struct UploadResult result = { 0 };
 
   if (!host_url) {
@@ -205,6 +206,10 @@ UploadResultT jirafeau_upload(const char *file_path, const char *time,
     part = curl_mime_addpart(mime);
     curl_mime_name(part, "file");
     curl_mime_filedata(part, file_path);
+
+    if (filename) {
+      curl_mime_filename(part, filename);
+    }
 
     if (time) {
       part = curl_mime_addpart(mime);
