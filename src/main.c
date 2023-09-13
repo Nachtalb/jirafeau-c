@@ -43,7 +43,7 @@ void subcommand_upload(int argc, char *argv[]) {
   char *        upload_password   = NULL;
   char *        key               = NULL;
   int           one_time_download = 0;
-  char *        filename;
+  char *        filename          = NULL;
   UploadResultT result;
 
   for (int i = 3; i < argc; i++) {
@@ -59,18 +59,40 @@ void subcommand_upload(int argc, char *argv[]) {
       one_time_download = 1;
     } else if (strcmp(argv[i], "-r") == 0 ||
                strcmp(argv[i], "--randomised-name") == 0) {
-      char random_stem[10];
-      random_string(random_stem, 9);
-      char *extension = strrchr(file_path, '.');
-      filename = (char *)malloc(strlen(extension) + 10 + 1);
-      snprintf(filename, strlen(extension) + 10 + 1, "%s%s", random_stem,
-               extension);
+      if (filename) {
+        fprintf(stderr,
+                "WARNING: -f / --filename takes presedence over -r / "
+                "--randomised-name, filename will be: '%s'",
+                filename);
+      } else {
+        char random_stem[10];
+        random_string(random_stem, 9);
+        char *extension = strrchr(file_path, '.');
+        filename = (char *)malloc(strlen(extension) + 10 + 1);
+        snprintf(filename, strlen(extension) + 10 + 1, "%s%s", random_stem,
+                 extension);
+      }
     } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--key") == 0) {
       if (i + 1 < argc && argv[i + 1][0] != '-') {
         key = argv[++i];
       } else {
         perror("Missing value for -k/--key\n");
         exit(EXIT_FAILURE);
+      }
+    } else if (strcmp(argv[i], "-f") == 0 ||
+               strcmp(argv[i], "--filename") == 0) {
+      if (i + 1 < argc) {
+        if (filename) {
+          free(filename);
+
+          filename = argv[++i];
+          fprintf(stderr,
+                  "WARNING: -f / --filename takes presedence over -r / "
+                  "--randomised-name, filename will be: '%s'\n",
+                  filename);
+        } else {
+          filename = argv[++i];
+        }
       }
     } else if (strcmp(argv[i], "-u") == 0 ||
                strcmp(argv[i], "--upload-password") == 0) {
@@ -86,7 +108,6 @@ void subcommand_upload(int argc, char *argv[]) {
   if (filename) {
     result = jirafeau_upload(file_path, time, upload_password,
                              one_time_download, key, filename);
-    free(filename);
   } else {
     jirafeau_upload(file_path, time, upload_password, one_time_download, key,
                     filename);
