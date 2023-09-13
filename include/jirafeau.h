@@ -46,6 +46,13 @@ typedef struct DeleteResult {
 void jirafeau_set_host(const char *host_url);
 
 /**
+ * Get the previously set host URL for the Jirafeau server.
+ *
+ * @request the host url
+ */
+char *jirafeau_get_host();
+
+/**
  * Uploads a file to the Jirafeau server.
  *
  * @param file_path Path to the file to be uploaded

@@ -160,6 +160,10 @@ void jirafeau_set_host(const char *new_host_url) {
   }
 }
 
+char *jirafeau_get_host() {
+  return host_url;
+}
+
 UploadResultT jirafeau_upload(const char *file_path, const char *time,
                               const char *upload_password,
                               int one_time_download, const char *key) {

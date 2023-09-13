@@ -67,14 +67,35 @@ void subcommand_upload(int argc, char *argv[]) {
     jirafeau_upload(file_path, time, upload_password, one_time_download, key);
 
   if (result.state == SUCCESS) {
+    char *host_url = jirafeau_get_host();
+
+    char *file_url;
+    snprintf(file_url, strlen(host_url) + 9 + strlen(result.file_id) + 1,
+             "%s/f.php?h=%s", host_url, result.file_id);
+
     if (isatty(STDOUT_FILENO)) {
-      printf("File ID:    %s\n", result.file_id);
-      printf("Delete Key: %s\n", result.delete_key);
+      printf("\033[1;32mURL\033[0m          %s\n", file_url);
+      printf("\033[1;34mPreview URL\033[0m  %s&p=1\n", file_url,
+             result.file_id);
+      printf("\033[1;35mDownload URL\033[0m %s&d=1\n", file_url,
+             result.file_id);
+      printf("\033[1;31mDelete URL\033[0m   %s&d=%s\n", file_url,
+             result.delete_key);
+      printf("\n");
+      printf("\033[1;36mFile ID\033[0m      %s\n", result.file_id);
+      printf("\033[1;33mDelete Key\033[0m   %s\n", result.delete_key);
       if (result.crypt_key) {
-        printf("Crypt Key:  %s\n", result.crypt_key);
+        printf("\033[1;37mCrypt Key\033[0m    %s\n", result.crypt_key);
       }
     } else {
-      printf("%s\n%s\%s\n", result.file_id, result.delete_key,
+      printf("{\"host\": \"%s\", "
+             "\"file_url\": \"%s\", "
+             "\"file_preview_url\": \"%s&p=1\", "
+             "\"file_download_url\": \"%s&d=1\", "
+             "\"file_delete_url\": \"%s&d=%s\", "
+             "\"file_id\":\"%s\",\"delete_key\":\"%s\",\"crypt_key\":\"%s\"}\n",
+             host_url, file_url, file_url, file_url, file_url,
+             result.delete_key, result.file_id, result.delete_key,
              result.crypt_key ? result.crypt_key : "");
     }
   } else {
