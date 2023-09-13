@@ -1,5 +1,5 @@
-#ifndef JIRAFAEU_H
-#define JIRAFAEU_H
+#ifndef JIRAFEAU_H
+#define JIRAFEAU_H
 
 #include <curl/curl.h>
 #include <stdlib.h>
@@ -88,4 +88,4 @@ DownloadResultT jirafeau_download(const char *file_id, const char *output_path,
  */
 DeleteResultT jirafeau_delete(const char *file_id, const char *delete_key);
 
-#endif // JIRAFAEU_H
+#endif // JIRAFEAU_H
